@@ -716,32 +716,39 @@ namespace UltimateManagedCuda.Audio
 			newData = StretchFloat2Data(newData, factor);
 
 			// Push data back to CUDA
-			ptr = PushToCuda(newData);
+			var newPtr = PushToCuda(newData);
 
 			// Update GUI
 			UpdatePointersList();
 
-			return ptr;
+			return newPtr;
 		}
 
 		public float2[] StretchFloat2Data(float2[] data, float factor = 1.0f)
 		{
-			// Return if factor is 1.0
-			if (factor == 1.0f)
+			// Return if factor is 1.0 or invalid input
+			if (factor == 1.0f || data.Length == 0 || factor < 0.1f)
 			{
 				return data;
 			}
 
-			// New float2 array
-			float2[] newData = new float2[(int) (data.Length * factor)];
+			int newSize = (int) (data.Length * factor);
+			float2[] newData = new float2[newSize];
 
-			// Stretch data
-			for (int i = 0; i < newData.Length; i++)
+			for (int i = 0; i < newSize; i++)
 			{
-				newData[i] = data[(int) (i / factor)];
+				float index = i / factor;
+				int lower = (int) Math.Floor(index);
+				int upper = Math.Min(lower + 1, data.Length - 1);
+				float fraction = index - lower;
+
+				// Lineare Interpolation für Real- und Imaginärteil
+				newData[i].x = data[lower].x + fraction * (data[upper].x - data[lower].x);
+				newData[i].y = data[lower].y + fraction * (data[upper].y - data[lower].y);
 			}
 
 			return newData;
 		}
+
 	}
 }
