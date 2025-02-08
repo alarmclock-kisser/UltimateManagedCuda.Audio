@@ -262,6 +262,7 @@
 			button_transFftInv.TabIndex = 19;
 			button_transFftInv.Text = "FFT INV";
 			button_transFftInv.UseVisualStyleBackColor = true;
+			button_transFftInv.Click += button_transFftInv_Click;
 			// 
 			// button_transFftFwd
 			// 
@@ -271,6 +272,7 @@
 			button_transFftFwd.TabIndex = 19;
 			button_transFftFwd.Text = "FFT FWD";
 			button_transFftFwd.UseVisualStyleBackColor = true;
+			button_transFftFwd.Click += button_transFftFwd_Click;
 			// 
 			// listBox_kernels
 			// 

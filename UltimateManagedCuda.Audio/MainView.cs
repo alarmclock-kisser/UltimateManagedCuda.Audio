@@ -595,12 +595,71 @@ namespace UltimateManagedCuda.Audio
 				var result = TransH.StretchFFT(ptr, length, factor, true);
 
 				// Add pointer
-				CudaH.Pointers.Add(result, new(length, 'n', samplerate, bitdepth, channels, "Stretched <" + (ptr.Pointer.ToString() ?? "") + ">"));
+				CudaH.Pointers.Add(result, new(length, 's', samplerate, bitdepth, channels, "Stretched <" + (ptr.Pointer.ToString() ?? "") + ">"));
 
 				// Update GUI
 				CudaH.UpdatePointersList();
 			}
 		}
 
+		private void button_transFftFwd_Click(object sender, EventArgs e)
+		{
+			// Get selected pointer & attributes
+			int ptrIndex = listBox_pointers.SelectedIndex;
+			long length = CudaH.Pointers.ElementAt(ptrIndex).Value.Item1;
+			char type = CudaH.Pointers.ElementAt(ptrIndex).Value.Item2;
+			int samplerate = CudaH.Pointers.ElementAt(ptrIndex).Value.Item3;
+			int bitdepth = CudaH.Pointers.ElementAt(ptrIndex).Value.Item4;
+			int channels = CudaH.Pointers.ElementAt(ptrIndex).Value.Item5;
+			string name = CudaH.Pointers.ElementAt(ptrIndex).Value.Item6;
+
+			// If no pointer is selected, abort
+			if (ptrIndex == -1 || CudaH.Ctx == null || TransH == null)
+			{
+				return;
+			}
+
+			// Get pointer from CudaH.Pointers & attributes
+			var ptr = CudaH.Pointers.ElementAt(ptrIndex).Key;
+
+			// Perform FFT forward
+			var newPtr = TransH.ForwardFFT(ptr, length);
+
+			// Add pointer
+			CudaH.Pointers.Add(newPtr, new(length, 'c', samplerate, bitdepth, channels, name + " FFT"));
+
+			// Update GUI
+			CudaH.UpdatePointersList();
+		}
+
+		private void button_transFftInv_Click(object sender, EventArgs e)
+		{
+			// Get selected pointer & attributes
+			int ptrIndex = listBox_pointers.SelectedIndex;
+			long length = CudaH.Pointers.ElementAt(ptrIndex).Value.Item1;
+			char type = CudaH.Pointers.ElementAt(ptrIndex).Value.Item2;
+			int samplerate = CudaH.Pointers.ElementAt(ptrIndex).Value.Item3;
+			int bitdepth = CudaH.Pointers.ElementAt(ptrIndex).Value.Item4;
+			int channels = CudaH.Pointers.ElementAt(ptrIndex).Value.Item5;
+			string name = CudaH.Pointers.ElementAt(ptrIndex).Value.Item6;
+
+			// If no pointer is selected, abort
+			if (ptrIndex == -1 || CudaH.Ctx == null || TransH == null)
+			{
+				return;
+			}
+
+			// Get pointer from CudaH.Pointers & attributes
+			var ptr = CudaH.Pointers.ElementAt(ptrIndex).Key;
+
+			// Perform FFT forward
+			var newPtr = TransH.InverseFFT(ptr, length);
+
+			// Add pointer
+			CudaH.Pointers.Add(newPtr, new(length, 'n', samplerate, bitdepth, channels, name + " IFFT"));
+
+			// Update GUI
+			CudaH.UpdatePointersList();
+		}
 	}
 }
