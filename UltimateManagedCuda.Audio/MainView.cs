@@ -6,6 +6,12 @@ namespace UltimateManagedCuda.Audio
 		public AudioHandling AudioH;
 		public CudaHandling CudaH;
 
+		public int Fps = 120;
+		public System.Windows.Forms.Timer PlaybackTimer;
+
+		public long Offset = 0;
+		public int SamplesPerPixel = 1024;
+
 
 
 
@@ -23,10 +29,16 @@ namespace UltimateManagedCuda.Audio
 			CudaH = new CudaHandling(comboBox_cudaDevice, label_cudaVram, progressBar_vramUsage, listBox_pointers, label_pointersInfo);
 
 			// Register events
-			listBox_tracks.Click += ImportTrack;
+			listBox_tracks.Click += RemoveTrack;
 			listBox_tracks.DoubleClick += MoveTrack;
 			listBox_pointers.Click += ClearPointer;
 			listBox_pointers.DoubleClick += PerformFFT;
+			pictureBox_waveform.MouseWheel += ScrollZoom;
+
+			// Init. playback timer
+			PlaybackTimer = new System.Windows.Forms.Timer();
+			PlaybackTimer.Interval = 1000 / Fps;
+			PlaybackTimer.Tick += listBox_tracks_SelectedIndexChanged;
 
 			// Init. CUDA device (or Host)
 			comboBox_cudaDevice.SelectedIndex = 0;
@@ -41,17 +53,10 @@ namespace UltimateManagedCuda.Audio
 
 
 
-
 		// ~~~~~ ~~~~~ ~~~~~ EVENTS ~~~~~ ~~~~~ ~~~~~ \\
 		// ~~~~~ Audio ~~~~~ \\
-		public void ImportTrack(object? sender, EventArgs e)
+		public void ImportTrack(object? sender, EventArgs? e)
 		{
-			// Abort if not CTRL + Click
-			if (ModifierKeys != Keys.Control)
-			{
-				return;
-			}
-
 			// Open file dialog
 			OpenFileDialog dialog = new()
 			{
@@ -72,6 +77,45 @@ namespace UltimateManagedCuda.Audio
 			}
 		}
 
+		private void button_import_Click(object sender, EventArgs e)
+		{
+			// Import track
+			ImportTrack(null, null);
+		}
+
+		public void RemoveTrack(object? sender, EventArgs e)
+		{
+			// Abort if not CTRL + Click
+			if (ModifierKeys != Keys.Control)
+			{
+				return;
+			}
+
+			// Get track
+			int index = listBox_tracks.SelectedIndex;
+
+			// If no track is selected, abort
+			if (index == -1)
+			{
+				return;
+			}
+
+			// If not SHIFT down: Remove & clear pointers
+			if (ModifierKeys != Keys.Shift)
+			{
+				CudaH.ClearPointers(AudioH.Tracks[index].Pointer, AudioH.Tracks[index].Spectrum);
+			}
+
+			// Remove track
+			AudioH.RemoveTrack(index);
+
+			// GC
+			GC.Collect();
+
+			// Update GUI
+			AudioH.UpdateTracksList();
+		}
+
 		private void listBox_tracks_SelectedIndexChanged(object? sender, EventArgs? e)
 		{
 			// Get track
@@ -80,6 +124,7 @@ namespace UltimateManagedCuda.Audio
 			// If no track is selected, abort
 			if (index == -1)
 			{
+				label_trackMeta.Text = "No track selected.";
 				pictureBox_waveform.Image = null;
 				return;
 			}
@@ -87,8 +132,21 @@ namespace UltimateManagedCuda.Audio
 			// If data != [], draw waveform
 			if (AudioH.Tracks[index].Data.Length > 0)
 			{
-				int res = AudioH.Tracks[index].GetFitResolution(pictureBox_waveform.Width);
-				AudioH.Tracks[index].DrawWaveformSmooth(pictureBox_waveform, 0, res, true, button_color.BackColor);
+				// Get offset
+				if (AudioH.Tracks[index].IsPlaying())
+				{
+					Offset = AudioH.Tracks[index].GetCurrentSample();
+				}
+
+				// Get resolution
+				int res = SamplesPerPixel;
+				if (Offset == 0)
+				{
+					res = AudioH.Tracks[index].GetFitResolution(pictureBox_waveform.Width);
+				}
+
+				// Draw waveform
+				AudioH.Tracks[index].DrawWaveformSmooth(pictureBox_waveform, Offset, res, true, button_color.BackColor);
 			}
 			else
 			{
@@ -124,13 +182,119 @@ namespace UltimateManagedCuda.Audio
 				if (dialog.Color.GetBrightness() < 0.5)
 				{
 					button_color.ForeColor = Color.White;
+
 				}
 				else
 				{
 					button_color.ForeColor = Color.Black;
 				}
 			}
+
+			// Update waveform
+			listBox_tracks_SelectedIndexChanged(null, null);
 		}
+
+		private void button_splitTrack_Click(object sender, EventArgs e)
+		{
+			// Get track
+			int index = listBox_tracks.SelectedIndex;
+
+			// If no track is selected, abort
+			if (index == -1)
+			{
+				return;
+			}
+
+			// Variable for two tracks
+			Tuple<AudioHandling.AudioObject, AudioHandling.AudioObject?> tracks;
+
+			// Split track (ignore channels if CTRL down)
+			if (ModifierKeys == Keys.Control)
+			{
+				tracks = AudioH.Tracks[index].Split(true);
+			}
+			else
+			{
+				tracks = AudioH.Tracks[index].Split();
+			}
+
+			// Remove old track
+			AudioH.RemoveTrack(index);
+
+			// Add new tracks
+			AudioH.Tracks.Add(tracks.Item1);
+			if (tracks.Item2 != null)
+			{
+				AudioH.Tracks.Add(tracks.Item2);
+			}
+
+			// Update GUI
+			AudioH.UpdateTracksList();
+		}
+
+		private void ScrollZoom(object? sender, MouseEventArgs e)
+		{
+			// Get track
+			int index = listBox_tracks.SelectedIndex;
+
+			// If no track is selected, abort
+			if (index == -1)
+			{
+				return;
+			}
+
+			// If CTRL down: Zoom
+			if (ModifierKeys == Keys.Control)
+			{
+				// Zoom in
+				if (e.Delta > 0)
+				{
+					SamplesPerPixel = Math.Max(1, (int) (SamplesPerPixel / 1.5f));
+				}
+				// Zoom out
+				else
+				{
+					// Help when value is 1
+					if (SamplesPerPixel == 1)
+					{
+						SamplesPerPixel = 2;
+					}
+
+					SamplesPerPixel = Math.Min(20000, (int) (SamplesPerPixel * 1.5f));
+				}
+			}
+
+			// Else: Scroll
+			else
+			{
+				// Scroll waveform
+				if (e.Delta > 0)
+				{
+					Offset = Math.Max(0, Offset - SamplesPerPixel * 25);
+				}
+				else
+				{
+					Offset = Math.Min(AudioH.Tracks[index].Data.Length - SamplesPerPixel, Offset + SamplesPerPixel * 25);
+				}
+			}
+
+			// Update waveform afterwards
+			listBox_tracks_SelectedIndexChanged(null, null);
+
+		}
+
+		private void numericUpDown_fps_ValueChanged(object sender, EventArgs e)
+		{
+			// Update FPS
+			Fps = (int) numericUpDown_fps.Value;
+
+			// Update timer
+			PlaybackTimer.Interval = 1000 / Fps;
+		}
+
+
+
+		// ~~~~~ Playback ~~~~~ \\
 
 
 		// ~~~~~ CUDA ~~~~~ \\
@@ -143,7 +307,7 @@ namespace UltimateManagedCuda.Audio
 			CudaH?.InitDevice(id);
 		}
 
-		private void MoveTrack(object? sender, EventArgs e)
+		private void MoveTrack(object? sender, EventArgs? e)
 		{
 			// Get track
 			int track = listBox_tracks.SelectedIndex;
@@ -211,14 +375,11 @@ namespace UltimateManagedCuda.Audio
 			// If successful, remove pointer from track
 			if (freed > 0)
 			{
-				AudioH.RemoveTrack((IntPtr)ptr.Pointer);
+				AudioH.RemoveTrack((IntPtr) ptr.Pointer);
 			}
 
 			// Update GUI
 			CudaH.UpdatePointersList();
-
-			// MsgBox
-			MessageBox.Show("Freed " + freed + " MB of memory", "Memory Cleared");			
 		}
 
 		private void PerformFFT(object? sender, EventArgs e)
@@ -257,13 +418,80 @@ namespace UltimateManagedCuda.Audio
 				index = AudioH.MakeTrack(CudaH.PullFromCuda(0, ptr), name, samplerate, bitdepth, channels);
 
 				// Normalize track
-				AudioH.Tracks[index].Normalize();
+				AudioH.Tracks[index].Normalize(1.0f);
 			}
 			else
 			{
 				// Handle the case where the track is not found
 				MessageBox.Show("Track not found for the given pointer.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
 			}
-		}		
+		}
+
+		private void button_playStop_Click(object sender, EventArgs e)
+		{
+			// Get track
+			int index = listBox_tracks.SelectedIndex;
+
+			// If no track is selected, abort
+			if (index == -1)
+			{
+				return;
+			}
+
+			// Play or stop track
+			if (AudioH.Tracks[index].IsPlaying())
+			{
+				PlaybackTimer.Stop();
+				AudioH.Tracks[index].Stop(button_playStop);
+			}
+			else
+			{
+				PlaybackTimer.Start();
+				AudioH.Tracks[index].Play(button_playStop);
+			}
+		}
+
+		private void button_stretchFactor_Click(object sender, EventArgs e)
+		{
+			// Get track
+			int index = listBox_tracks.SelectedIndex;
+
+			// If no track is selected, abort
+			if (index == -1)
+			{
+				return;
+			}
+
+			// If no Pointer: Push to CUDA
+			if (AudioH.Tracks[index].Pointer == 0)
+			{
+				MoveTrack(null, null);
+			}
+
+			// Get pointer from CudaH.Pointers
+			var ptr = CudaH.Pointers.ElementAt(CudaH.GetPointerIndex(AudioH.Tracks[index].Pointer)).Key;
+
+			// Get stretch factor
+			float factor = (float) numericUpDown_factor.Value;
+
+			// FFT -> Stretch -> Inverse FFT
+			var fftPointer = CudaH.PerformForwardFFT(0, ptr);
+
+			// Stretch
+			fftPointer = CudaH.StretchPointerData(0, fftPointer, factor);
+
+			// Inverse FFT
+			var invPointer = CudaH.PerformInverseFFT(0, fftPointer);
+
+			// Make track
+			index = AudioH.MakeTrack(CudaH.PullFromCuda(0, invPointer), "Stretched <" + (invPointer?.Pointer.ToString() ?? "") + ">", AudioH.Tracks[index].Samplerate, AudioH.Tracks[index].Bitdepth, AudioH.Tracks[index].Channels);
+
+			// Normalize track
+			AudioH.Tracks[index].Normalize(factor);
+
+			// Update GUI
+			AudioH.UpdateTracksList();
+			CudaH.UpdatePointersList();
+		}
 	}
 }

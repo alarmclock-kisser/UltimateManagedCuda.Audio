@@ -1,6 +1,7 @@
 ﻿using ManagedCuda;
 using ManagedCuda.BasicTypes;
 using ManagedCuda.CudaFFT;
+using ManagedCuda.VectorTypes;
 using System.Reflection;
 using static UltimateManagedCuda.Audio.AudioHandling;
 
@@ -347,6 +348,86 @@ namespace UltimateManagedCuda.Audio
 			return pointer;
 		}
 
+		public CUdeviceptr? PushToCuda(float2[] data, int samplerate = 44100, int bitdepth = 32, int channels = 2, string name = "")
+		{
+			// Abort if data is invalid
+			if (data.Length == 0 || Ctx == null)
+			{
+				return null;
+			}
+
+			// Allocate memory
+			CUdeviceptr? pointer = AllocMemory(data.Length, 'c', samplerate, bitdepth, channels, name);
+
+			// Abort if pointer is invalid
+			if (pointer == null)
+			{
+				return null;
+			}
+
+			// Copy data
+			try
+			{
+				Ctx.CopyToDevice<float2>(pointer.Value, data);
+
+				// Add to pointers
+				Pointers.Add(pointer.Value, new Tuple<long, char, int, int, int, string>(data.Length, 'c', samplerate, bitdepth, channels, name));
+			}
+			catch (CudaException ex)
+			{
+				Console.WriteLine(" --- CUDA Error: " + ex.Message);
+			}
+
+			// Syncronize Ctx
+			Ctx.Synchronize();
+
+			// Update GUI
+			UpdatePointersList();
+			return pointer.Value;
+		}
+
+		public float2[] PushFromCuda(long pointer = 0, CUdeviceptr? ptr = null)
+		{
+			// Abort if pointer is invalid
+			if (pointer <= 0 && ptr == null || Ctx == null)
+			{
+				return [];
+			}
+
+			// Get pointer
+			ptr ??= new CUdeviceptr(pointer);
+
+			// Find size and type
+			if (!Pointers.ContainsKey(ptr.Value))
+			{
+				return [];
+			}
+			long length = Pointers[ptr.Value].Item1;
+			char type = Pointers[ptr.Value].Item2;
+
+			// New float2 array
+			float2[] data = new float2[length];
+
+			// Try to copy data
+			try
+			{
+				Ctx.CopyToHost<float2>(data, ptr.Value);
+				Pointers.Remove(ptr.Value);
+				Ctx.FreeMemory(ptr.Value);
+			}
+			catch (CudaException ex)
+			{
+				Console.WriteLine(" --- CUDA Error: " + ex.Message);
+			}
+
+			// Syncronize Ctx
+			Ctx.Synchronize();
+
+			// Update GUI
+			UpdatePointersList();
+			return data;
+		}
+
 		public float[] PullFromCuda(long pointer = 0, CUdeviceptr? ptr = null)
 		{
 			// Abort if pointer is invalid
@@ -428,6 +509,47 @@ namespace UltimateManagedCuda.Audio
 			return size;
 		}
 
+		internal void ClearPointers(long pointer, long spectrum)
+		{
+			// Abort if Ctx is not set
+			if (Ctx == null)
+			{
+				return;
+			}
+
+			// Clear pointer if not 0
+			if (pointer > 0)
+			{
+				ClearPointer(pointer);
+			}
+
+			// Clear spectrum if not 0
+			if (spectrum > 0)
+			{
+				ClearPointer(spectrum);
+			}
+
+			// Update GUI
+			UpdatePointersList();
+		}
+
+		public int GetPointerIndex(long pointer)
+		{
+			// Find index
+			int index = 0;
+			foreach (var ptr in Pointers)
+			{
+				if (ptr.Key.Pointer == pointer)
+				{
+					return index;
+				}
+				index++;
+			}
+
+			// Return -1 if not found
+			return -1;
+		}
+
 
 		// ~~~~~ FFT ~~~~~ \\
 		public CUdeviceptr? PerformForwardFFT(long pointer = 0, CUdeviceptr? ptr = null)
@@ -456,7 +578,7 @@ namespace UltimateManagedCuda.Audio
 
 			// New pointer for FFT
 			CUdeviceptr? newPtr = AllocMemory(length / 2 + 1, 'c', samplerate, bitdepth, channels, name);
-			
+
 			// Abort if type is not 'd'
 			if (type != 'd' || newPtr == null)
 			{
@@ -527,10 +649,10 @@ namespace UltimateManagedCuda.Audio
 
 				// Execute plan
 				plan.Exec(ptr.Value, newPtr.Value);
-				
+
 				// Destroy plan
 				plan.Dispose();
-				
+
 				// Return new pointer
 				return newPtr;
 			}
@@ -545,6 +667,81 @@ namespace UltimateManagedCuda.Audio
 			// Update GUI
 			UpdatePointersList();
 			return ptr;
+		}
+
+		public CUdeviceptr? StretchPointerData(long pointer = 0, CUdeviceptr? ptr = null, float factor = 1.0f)
+		{
+			// Abort if pointer is invalid
+			if (pointer <= 0 && ptr == null)
+			{
+				return null;
+			}
+
+			// Return if factor is 1.0
+			if (factor == 1.0f)
+			{
+				return ptr;
+			}
+
+			// Get pointer
+			ptr ??= new CUdeviceptr(pointer);
+
+			// Find size and type
+			if (!Pointers.ContainsKey(ptr.Value))
+			{
+				return ptr;
+			}
+
+			// Get attributes
+			long length = Pointers[ptr.Value].Item1;
+			char type = Pointers[ptr.Value].Item2;
+			int samplerate = Pointers[ptr.Value].Item3;
+			int bitdepth = Pointers[ptr.Value].Item4;
+			int channels = Pointers[ptr.Value].Item5;
+			string name = Pointers[ptr.Value].Item6;
+
+			// New float2 array
+			float2[] newData = new float2[(int) (length * factor)];
+
+			// Try to copy data
+			newData = PushFromCuda(0, ptr.Value);
+
+			// Abort if data is invalid
+			if (newData.Length == 0)
+			{
+				return ptr;
+			}
+
+			// Stretch data
+			newData = StretchFloat2Data(newData, factor);
+
+			// Push data back to CUDA
+			ptr = PushToCuda(newData);
+
+			// Update GUI
+			UpdatePointersList();
+
+			return ptr;
+		}
+
+		public float2[] StretchFloat2Data(float2[] data, float factor = 1.0f)
+		{
+			// Return if factor is 1.0
+			if (factor == 1.0f)
+			{
+				return data;
+			}
+
+			// New float2 array
+			float2[] newData = new float2[(int) (data.Length * factor)];
+
+			// Stretch data
+			for (int i = 0; i < newData.Length; i++)
+			{
+				newData[i] = data[(int) (i / factor)];
+			}
+
+			return newData;
 		}
 	}
 }

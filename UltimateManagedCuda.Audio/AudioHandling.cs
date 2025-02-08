@@ -399,7 +399,7 @@ namespace UltimateManagedCuda.Audio
 				return floats;
 			}
 
-			public Bitmap DrawWaveformSmooth(PictureBox wavebox, long offset = 0, int samplesPerPixel = 1, bool update = false, Color? color = null)
+			public Bitmap DrawWaveformSmooth(PictureBox wavebox, long offset = 0, int samplesPerPixel = 1, bool update = false, Color? graph = null)
 			{
 				// Überprüfen, ob floats und die PictureBox gültig sind
 				if (Data.Length == 0 || wavebox.Width <= 0 || wavebox.Height <= 0)
@@ -414,9 +414,10 @@ namespace UltimateManagedCuda.Audio
 					return new Bitmap(1, 1);
 				}
 
-				// Colors
-				Color waveformColor = color ?? Color.FromName("HotTrack");
-				Color backgroundColor = Color.White;
+				// Colors (background depends on graph brightness)
+				Color waveformColor = graph ?? Color.FromName("HotTrack");
+				Color backgroundColor = waveformColor.GetBrightness() < 0.5 ? Color.White : Color.Black;
+
 
 				Bitmap bmp = new(wavebox.Width, wavebox.Height);
 				using Graphics gfx = Graphics.FromImage(bmp);
@@ -578,7 +579,13 @@ namespace UltimateManagedCuda.Audio
 			{
 				long length = Data.LongLength;
 
-				if (length == 0 || factor == 1.0f)
+				if (factor == 1.0f)
+				{
+					Normalize();
+					return;
+				}
+
+				if (length == 0)
 				{
 					return;
 				}
@@ -588,6 +595,176 @@ namespace UltimateManagedCuda.Audio
 					Data[i] /= (length * factor);
 				}
 			}
+
+			public void Normalize()
+			{
+				// Normalize data by dividing by count of samples
+				for (int i = 0; i < Data.Length; i++)
+				{
+					Data[i] /= Data.Length;
+				}
+			}
+
+			public Tuple<AudioObject, AudioObject?> Split(bool ignoreChannels = false)
+			{
+				// Abort if no data
+				if (Data.Length == 0)
+				{
+					// Return tuple
+					return new Tuple<AudioObject, AudioObject?>(this, null);
+				}
+
+				// If Channels != 2 and ignoreChannels is false, return tuple
+				if (Channels != 2 && !ignoreChannels)
+				{
+					// Return tuple
+					return new Tuple<AudioObject, AudioObject?>(this, null);
+				}
+
+				// Create new tracks for left and right channel
+				AudioObject left = new("")
+				{
+					Data = new float[Data.Length / 2],
+					Name = "(L) " + Name,
+					Samplerate = Samplerate,
+					Bitdepth = Bitdepth,
+					Channels = 1,
+					Length = Data.Length / 2,
+					Duration = Data.Length / 2 / Samplerate
+				};
+
+				AudioObject right = new("")
+				{
+					Data = new float[Data.Length / 2],
+					Name = "(R) " + Name,
+					Samplerate = Samplerate,
+					Bitdepth = Bitdepth,
+					Channels = 1,
+					Length = Data.Length / 2,
+					Duration = Data.Length / 2 / Samplerate
+				};
+
+				// Split data
+				for (int i = 0; i < Data.Length; i += 2)
+				{
+					left.Data[i / 2] = Data[i];
+					right.Data[i / 2] = Data[i + 1];
+				}
+
+				// Return tuple
+				return new Tuple<AudioObject, AudioObject?>(left, right);
+			}
+
+			public void Play(Button? b = null)
+			{
+				// Abort if no data or already playing
+				if (Data.Length == 0 || Player.PlaybackState == PlaybackState.Playing)
+				{
+					// Set button text
+					if (b != null)
+					{
+						b.Text = @"▶";
+					}
+
+					return;
+				}
+
+				// Create waveformat
+				WaveFormat format = new(Samplerate, Bitdepth, Channels);
+
+				// Create memory stream with format
+				MemoryStream stream = new(GetBytes());
+				WaveStream waveStream = new RawSourceWaveStream(stream, format);
+
+				// Set button text
+				if (b != null)
+				{
+					b.Text = @"⏹";
+				}
+
+				// Set player
+				Player.Init(waveStream);
+				Player.Play();
+			}
+
+			public void Stop(Button? b = null)
+			{
+				// Abort if not playing
+				if (Player.PlaybackState != PlaybackState.Playing)
+				{
+					// Set button text
+					if (b != null)
+					{
+						b.Text = @"▶";
+					}
+					return;
+				}
+
+				// Stop player
+				Player.Stop();
+
+				// Set button text
+				if (b != null)
+				{
+					b.Text = @"▶";
+				}
+			}
+
+			public void PlayStop(Button? b = null)
+			{
+				// Play if not playing, stop if playing
+				if (Player.PlaybackState != PlaybackState.Playing)
+				{
+					// Set button text
+					if (b != null)
+					{
+						b.Text = @"⏹";
+					}
+
+					Play();
+				}
+				else
+				{
+					// Set button text
+					if (b != null)
+					{
+						b.Text = @"▶";
+					}
+
+					Stop();
+				}
+			}
+
+			public long GetCurrentSample()
+			{
+				// Get current sample
+				long sample = 0;
+
+				// If playing, get position
+				if (Player.PlaybackState == PlaybackState.Playing)
+				{
+					sample = Player.GetPosition() / (Bitdepth / 8);
+				}
+
+				return sample;
+			}
+
+			public string GetCurrentTimestamp()
+			{
+				// Get current timestamp
+				long sample = GetCurrentSample();
+				double time = sample / (double) Samplerate;
+
+				return TimeSpan.FromSeconds(time).ToString(@"mm\:ss\.fff");
+			}
+
+			public bool IsPlaying()
+			{
+				// Return if player is playing
+				return Player.PlaybackState == PlaybackState.Playing;
+			}
+
+
 		}
 	}
 }

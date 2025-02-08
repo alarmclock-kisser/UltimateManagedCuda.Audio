@@ -38,14 +38,24 @@
 			label_trackMeta = new Label();
 			label_tracksInfo = new Label();
 			label_pointersInfo = new Label();
+			button_splitTrack = new Button();
+			button_import = new Button();
+			button_playStop = new Button();
+			numericUpDown_fps = new NumericUpDown();
+			label_fps = new Label();
+			button_stretchFactor = new Button();
+			numericUpDown_factor = new NumericUpDown();
+			label_factor = new Label();
 			((System.ComponentModel.ISupportInitialize) pictureBox_waveform).BeginInit();
+			((System.ComponentModel.ISupportInitialize) numericUpDown_fps).BeginInit();
+			((System.ComponentModel.ISupportInitialize) numericUpDown_factor).BeginInit();
 			SuspendLayout();
 			// 
 			// listBox_tracks
 			// 
 			listBox_tracks.FormattingEnabled = true;
 			listBox_tracks.ItemHeight = 15;
-			listBox_tracks.Location = new Point(12, 466);
+			listBox_tracks.Location = new Point(12, 485);
 			listBox_tracks.Name = "listBox_tracks";
 			listBox_tracks.Size = new Size(280, 154);
 			listBox_tracks.TabIndex = 0;
@@ -81,7 +91,7 @@
 			// 
 			listBox_pointers.FormattingEnabled = true;
 			listBox_pointers.ItemHeight = 15;
-			listBox_pointers.Location = new Point(412, 466);
+			listBox_pointers.Location = new Point(412, 485);
 			listBox_pointers.Name = "listBox_pointers";
 			listBox_pointers.Size = new Size(280, 154);
 			listBox_pointers.TabIndex = 4;
@@ -89,7 +99,7 @@
 			// pictureBox_waveform
 			// 
 			pictureBox_waveform.BackColor = Color.White;
-			pictureBox_waveform.Location = new Point(12, 340);
+			pictureBox_waveform.Location = new Point(12, 359);
 			pictureBox_waveform.Name = "pictureBox_waveform";
 			pictureBox_waveform.Size = new Size(680, 120);
 			pictureBox_waveform.TabIndex = 5;
@@ -99,9 +109,9 @@
 			// 
 			button_color.BackColor = SystemColors.HotTrack;
 			button_color.ForeColor = Color.White;
-			button_color.Location = new Point(617, 12);
+			button_color.Location = new Point(612, 12);
 			button_color.Name = "button_color";
-			button_color.Size = new Size(75, 23);
+			button_color.Size = new Size(80, 23);
 			button_color.TabIndex = 6;
 			button_color.Text = "Color";
 			button_color.UseVisualStyleBackColor = false;
@@ -111,7 +121,7 @@
 			// 
 			label_trackMeta.AutoSize = true;
 			label_trackMeta.BackColor = Color.Transparent;
-			label_trackMeta.Location = new Point(12, 322);
+			label_trackMeta.Location = new Point(12, 341);
 			label_trackMeta.Name = "label_trackMeta";
 			label_trackMeta.Size = new Size(91, 15);
 			label_trackMeta.TabIndex = 7;
@@ -120,7 +130,7 @@
 			// label_tracksInfo
 			// 
 			label_tracksInfo.AutoSize = true;
-			label_tracksInfo.Location = new Point(12, 623);
+			label_tracksInfo.Location = new Point(12, 642);
 			label_tracksInfo.Name = "label_tracksInfo";
 			label_tracksInfo.Size = new Size(57, 15);
 			label_tracksInfo.TabIndex = 8;
@@ -129,17 +139,106 @@
 			// label_pointersInfo
 			// 
 			label_pointersInfo.AutoSize = true;
-			label_pointersInfo.Location = new Point(412, 623);
+			label_pointersInfo.Location = new Point(412, 642);
 			label_pointersInfo.Name = "label_pointersInfo";
 			label_pointersInfo.Size = new Size(67, 15);
 			label_pointersInfo.TabIndex = 9;
 			label_pointersInfo.Text = "Pointers (0)";
+			// 
+			// button_splitTrack
+			// 
+			button_splitTrack.Location = new Point(298, 616);
+			button_splitTrack.Name = "button_splitTrack";
+			button_splitTrack.Size = new Size(60, 23);
+			button_splitTrack.TabIndex = 10;
+			button_splitTrack.Text = "Split L/R";
+			button_splitTrack.UseVisualStyleBackColor = true;
+			button_splitTrack.Click += button_splitTrack_Click;
+			// 
+			// button_import
+			// 
+			button_import.Location = new Point(187, 645);
+			button_import.Name = "button_import";
+			button_import.Size = new Size(75, 24);
+			button_import.TabIndex = 11;
+			button_import.Text = "Import";
+			button_import.UseVisualStyleBackColor = true;
+			button_import.Click += button_import_Click;
+			// 
+			// button_playStop
+			// 
+			button_playStop.Location = new Point(268, 645);
+			button_playStop.Name = "button_playStop";
+			button_playStop.Size = new Size(24, 24);
+			button_playStop.TabIndex = 12;
+			button_playStop.Text = "▶";
+			button_playStop.UseVisualStyleBackColor = true;
+			button_playStop.Click += button_playStop_Click;
+			// 
+			// numericUpDown_fps
+			// 
+			numericUpDown_fps.Location = new Point(647, 41);
+			numericUpDown_fps.Maximum = new decimal(new int[] { 240, 0, 0, 0 });
+			numericUpDown_fps.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
+			numericUpDown_fps.Name = "numericUpDown_fps";
+			numericUpDown_fps.Size = new Size(45, 23);
+			numericUpDown_fps.TabIndex = 13;
+			numericUpDown_fps.Value = new decimal(new int[] { 120, 0, 0, 0 });
+			numericUpDown_fps.ValueChanged += numericUpDown_fps_ValueChanged;
+			// 
+			// label_fps
+			// 
+			label_fps.AutoSize = true;
+			label_fps.Location = new Point(612, 43);
+			label_fps.Name = "label_fps";
+			label_fps.Size = new Size(29, 15);
+			label_fps.TabIndex = 14;
+			label_fps.Text = "FPS:";
+			// 
+			// button_stretchFactor
+			// 
+			button_stretchFactor.Location = new Point(346, 485);
+			button_stretchFactor.Name = "button_stretchFactor";
+			button_stretchFactor.Size = new Size(60, 23);
+			button_stretchFactor.TabIndex = 15;
+			button_stretchFactor.Text = "Stretch";
+			button_stretchFactor.UseVisualStyleBackColor = true;
+			button_stretchFactor.Click += button_stretchFactor_Click;
+			// 
+			// numericUpDown_factor
+			// 
+			numericUpDown_factor.DecimalPlaces = 10;
+			numericUpDown_factor.Increment = new decimal(new int[] { 5, 0, 0, 131072 });
+			numericUpDown_factor.Location = new Point(298, 514);
+			numericUpDown_factor.Maximum = new decimal(new int[] { 5, 0, 0, 0 });
+			numericUpDown_factor.Minimum = new decimal(new int[] { 5, 0, 0, 131072 });
+			numericUpDown_factor.Name = "numericUpDown_factor";
+			numericUpDown_factor.Size = new Size(108, 23);
+			numericUpDown_factor.TabIndex = 16;
+			numericUpDown_factor.Value = new decimal(new int[] { 10, 0, 0, 65536 });
+			// 
+			// label_factor
+			// 
+			label_factor.AutoSize = true;
+			label_factor.Location = new Point(298, 493);
+			label_factor.Name = "label_factor";
+			label_factor.Size = new Size(40, 15);
+			label_factor.TabIndex = 17;
+			label_factor.Text = "Factor";
 			// 
 			// MainView
 			// 
 			AutoScaleDimensions = new SizeF(7F, 15F);
 			AutoScaleMode = AutoScaleMode.Font;
 			ClientSize = new Size(704, 681);
+			Controls.Add(label_factor);
+			Controls.Add(numericUpDown_factor);
+			Controls.Add(button_stretchFactor);
+			Controls.Add(label_fps);
+			Controls.Add(numericUpDown_fps);
+			Controls.Add(button_playStop);
+			Controls.Add(button_import);
+			Controls.Add(button_splitTrack);
 			Controls.Add(label_pointersInfo);
 			Controls.Add(label_tracksInfo);
 			Controls.Add(label_trackMeta);
@@ -156,6 +255,8 @@
 			Name = "MainView";
 			Text = "ULTIMATE ManagedCuda-12 (Audio)";
 			((System.ComponentModel.ISupportInitialize) pictureBox_waveform).EndInit();
+			((System.ComponentModel.ISupportInitialize) numericUpDown_fps).EndInit();
+			((System.ComponentModel.ISupportInitialize) numericUpDown_factor).EndInit();
 			ResumeLayout(false);
 			PerformLayout();
 		}
@@ -172,5 +273,13 @@
 		private Label label_trackMeta;
 		private Label label_tracksInfo;
 		private Label label_pointersInfo;
+		private Button button_splitTrack;
+		private Button button_import;
+		private Button button_playStop;
+		private NumericUpDown numericUpDown_fps;
+		private Label label_fps;
+		private Button button_stretchFactor;
+		private NumericUpDown numericUpDown_factor;
+		private Label label_factor;
 	}
 }
