@@ -3,8 +3,11 @@ namespace UltimateManagedCuda.Audio
 	public partial class MainView : Form
 	{
 		// ~~~~~ ~~~~~ ~~~~~ ATTRIBUTES ~~~~~ ~~~~~ ~~~~~ \\
+		public string Repopath;
+
 		public AudioHandling AudioH;
 		public CudaHandling CudaH;
+		public TransformationHandling? TransH;
 
 		public int Fps = 120;
 		public System.Windows.Forms.Timer PlaybackTimer;
@@ -20,6 +23,9 @@ namespace UltimateManagedCuda.Audio
 		{
 			InitializeComponent();
 
+			// Get repo path
+			Repopath = GetRepopath(true);
+
 			// Window position
 			this.StartPosition = FormStartPosition.Manual;
 			this.Location = new Point(0, 0);
@@ -34,6 +40,7 @@ namespace UltimateManagedCuda.Audio
 			listBox_pointers.Click += ClearPointer;
 			listBox_pointers.DoubleClick += PerformFFT;
 			pictureBox_waveform.MouseWheel += ScrollZoom;
+			listBox_kernels.DoubleClick += RunKernel;
 
 			// Init. playback timer
 			PlaybackTimer = new System.Windows.Forms.Timer();
@@ -49,6 +56,19 @@ namespace UltimateManagedCuda.Audio
 
 
 		// ~~~~~ ~~~~~ ~~~~~ METHODS ~~~~~ ~~~~~ ~~~~~ \\
+		public string GetRepopath(bool root = false)
+		{
+			string repo = AppDomain.CurrentDomain.BaseDirectory;
+
+			if (root)
+			{
+				repo += @"..\..\..\";
+			}
+
+			repo = Path.GetFullPath(repo);
+
+			return repo;
+		}
 
 
 
@@ -304,7 +324,18 @@ namespace UltimateManagedCuda.Audio
 			int id = comboBox_cudaDevice.SelectedIndex;
 
 			// Init. device
-			CudaH?.InitDevice(id);
+			CudaH.InitDevice(id);
+
+			// Init. Transformations if Ctx != null
+			if (CudaH.Ctx != null)
+			{
+				TransH = new(Repopath, CudaH.Ctx, listBox_kernels);
+			}
+			else
+			{
+				TransH = null;
+			}
+
 		}
 
 		private void MoveTrack(object? sender, EventArgs? e)
@@ -493,5 +524,83 @@ namespace UltimateManagedCuda.Audio
 			AudioH.UpdateTracksList();
 			CudaH.UpdatePointersList();
 		}
+
+
+		// ~~~~~ Transformation ~~~~~ \\
+		private void button_transAddKernel_Click(object sender, EventArgs e)
+		{
+			// Abort if no Ctx or TransH
+			if (CudaH.Ctx == null || TransH == null)
+			{
+				return;
+			}
+
+			// Open file dialog at Repopath + "Resources\Kernels\", single selection TXT
+			OpenFileDialog dialog = new()
+			{
+				Title = "Select kernel string file",
+				Filter = "Kernel files|*.txt",
+				InitialDirectory = Repopath + @"Resources\Kernels\",
+				Multiselect = false,
+				CheckFileExists = true
+			};
+
+			// OFD show -> Read kernel string -> Add kernel
+			if (dialog.ShowDialog() == DialogResult.OK)
+			{
+				// Get name
+				string name = Path.GetFileNameWithoutExtension(dialog.FileName);
+
+				// Read kernel string
+				string kernel = TransH.ReadKernelString(dialog.FileName);
+
+				// Add kernel
+				TransH.CompileKernel(kernel);
+			}
+		}
+
+		private void RunKernel(object? sender, EventArgs e)
+		{
+			// Get index of kernel
+			int kernelIndex = listBox_kernels.SelectedIndex;
+
+			// Get selected pointer
+			int ptrIndex = listBox_pointers.SelectedIndex;
+
+			// If no kernel is selected, abort
+			if (kernelIndex == -1 || ptrIndex == -1 || CudaH.Ctx == null || TransH == null)
+			{
+				return;
+			}
+
+			// Get pointer from CudaH.Pointers & attributes
+			var ptr = CudaH.Pointers.ElementAt(ptrIndex).Key;
+			long length = CudaH.Pointers.ElementAt(ptrIndex).Value.Item1;
+			char type = CudaH.Pointers.ElementAt(ptrIndex).Value.Item2;
+			int samplerate = CudaH.Pointers.ElementAt(ptrIndex).Value.Item3;
+			int bitdepth = CudaH.Pointers.ElementAt(ptrIndex).Value.Item4;
+			int channels = CudaH.Pointers.ElementAt(ptrIndex).Value.Item5;
+			string name = CudaH.Pointers.ElementAt(ptrIndex).Value.Item6;
+
+			// Get kernel
+			var kernel = TransH.Kernels.ElementAt(kernelIndex);
+
+			// If kernel name is StretchingK
+			if (kernel.KernelName.Contains("StretchingKernel"))
+			{
+				// Get factor
+				float factor = (float) numericUpDown_factor.Value;
+
+				// Run kernel
+				var result = TransH.StretchFFT(ptr, length, factor, true);
+
+				// Add pointer
+				CudaH.Pointers.Add(result, new(length, 'n', samplerate, bitdepth, channels, "Stretched <" + (ptr.Pointer.ToString() ?? "") + ">"));
+
+				// Update GUI
+				CudaH.UpdatePointersList();
+			}
+		}
+
 	}
 }

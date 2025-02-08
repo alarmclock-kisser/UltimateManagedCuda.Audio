@@ -46,9 +46,15 @@
 			button_stretchFactor = new Button();
 			numericUpDown_factor = new NumericUpDown();
 			label_factor = new Label();
+			groupBox_transformations = new GroupBox();
+			button_transAddKernel = new Button();
+			button_transFftInv = new Button();
+			button_transFftFwd = new Button();
+			listBox_kernels = new ListBox();
 			((System.ComponentModel.ISupportInitialize) pictureBox_waveform).BeginInit();
 			((System.ComponentModel.ISupportInitialize) numericUpDown_fps).BeginInit();
 			((System.ComponentModel.ISupportInitialize) numericUpDown_factor).BeginInit();
+			groupBox_transformations.SuspendLayout();
 			SuspendLayout();
 			// 
 			// listBox_tracks
@@ -226,11 +232,62 @@
 			label_factor.TabIndex = 17;
 			label_factor.Text = "Factor";
 			// 
+			// groupBox_transformations
+			// 
+			groupBox_transformations.Controls.Add(button_transAddKernel);
+			groupBox_transformations.Controls.Add(button_transFftInv);
+			groupBox_transformations.Controls.Add(button_transFftFwd);
+			groupBox_transformations.Location = new Point(412, 199);
+			groupBox_transformations.Name = "groupBox_transformations";
+			groupBox_transformations.Size = new Size(280, 154);
+			groupBox_transformations.TabIndex = 18;
+			groupBox_transformations.TabStop = false;
+			groupBox_transformations.Text = "Transformations (CUDA)";
+			// 
+			// button_transAddKernel
+			// 
+			button_transAddKernel.Location = new Point(199, 22);
+			button_transAddKernel.Name = "button_transAddKernel";
+			button_transAddKernel.Size = new Size(75, 23);
+			button_transAddKernel.TabIndex = 19;
+			button_transAddKernel.Text = "+ Kernel";
+			button_transAddKernel.UseVisualStyleBackColor = true;
+			button_transAddKernel.Click += button_transAddKernel_Click;
+			// 
+			// button_transFftInv
+			// 
+			button_transFftInv.Location = new Point(6, 51);
+			button_transFftInv.Name = "button_transFftInv";
+			button_transFftInv.Size = new Size(75, 23);
+			button_transFftInv.TabIndex = 19;
+			button_transFftInv.Text = "FFT INV";
+			button_transFftInv.UseVisualStyleBackColor = true;
+			// 
+			// button_transFftFwd
+			// 
+			button_transFftFwd.Location = new Point(6, 22);
+			button_transFftFwd.Name = "button_transFftFwd";
+			button_transFftFwd.Size = new Size(75, 23);
+			button_transFftFwd.TabIndex = 19;
+			button_transFftFwd.Text = "FFT FWD";
+			button_transFftFwd.UseVisualStyleBackColor = true;
+			// 
+			// listBox_kernels
+			// 
+			listBox_kernels.FormattingEnabled = true;
+			listBox_kernels.ItemHeight = 15;
+			listBox_kernels.Location = new Point(298, 214);
+			listBox_kernels.Name = "listBox_kernels";
+			listBox_kernels.Size = new Size(108, 139);
+			listBox_kernels.TabIndex = 19;
+			// 
 			// MainView
 			// 
 			AutoScaleDimensions = new SizeF(7F, 15F);
 			AutoScaleMode = AutoScaleMode.Font;
 			ClientSize = new Size(704, 681);
+			Controls.Add(listBox_kernels);
+			Controls.Add(groupBox_transformations);
 			Controls.Add(label_factor);
 			Controls.Add(numericUpDown_factor);
 			Controls.Add(button_stretchFactor);
@@ -257,6 +314,7 @@
 			((System.ComponentModel.ISupportInitialize) pictureBox_waveform).EndInit();
 			((System.ComponentModel.ISupportInitialize) numericUpDown_fps).EndInit();
 			((System.ComponentModel.ISupportInitialize) numericUpDown_factor).EndInit();
+			groupBox_transformations.ResumeLayout(false);
 			ResumeLayout(false);
 			PerformLayout();
 		}
@@ -281,5 +339,10 @@
 		private Button button_stretchFactor;
 		private NumericUpDown numericUpDown_factor;
 		private Label label_factor;
+		private GroupBox groupBox_transformations;
+		private Button button_transAddKernel;
+		private Button button_transFftInv;
+		private Button button_transFftFwd;
+		private ListBox listBox_kernels;
 	}
 }

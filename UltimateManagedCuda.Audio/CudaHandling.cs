@@ -674,7 +674,7 @@ namespace UltimateManagedCuda.Audio
 			// Abort if pointer is invalid
 			if (pointer <= 0 && ptr == null)
 			{
-				return null;
+				return ptr;
 			}
 
 			// Return if factor is 1.0
@@ -687,7 +687,7 @@ namespace UltimateManagedCuda.Audio
 			ptr ??= new CUdeviceptr(pointer);
 
 			// Find size and type
-			if (!Pointers.ContainsKey(ptr.Value))
+			if (Pointers.ContainsKey(ptr.Value))
 			{
 				return ptr;
 			}

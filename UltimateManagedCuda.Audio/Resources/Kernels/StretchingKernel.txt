@@ -1,0 +1,21 @@
+extern ""C"" __global__
+void StretchFFT(float2* input, float2* output, int inputSize, int outputSize, float factor)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= outputSize) return;
+
+    float srcIndex = idx / factor;
+    int x1 = (int)floorf(srcIndex);
+    int x2 = min(x1 + 1, inputSize - 1);
+    
+    float2 v1 = input[x1];
+    float2 v2 = input[x2];
+    float alpha = srcIndex - x1;
+
+    // Lineare Interpolation
+    float2 result;
+    result.x = v1.x * (1.0f - alpha) + v2.x * alpha;
+    result.y = v1.y * (1.0f - alpha) + v2.y * alpha;
+
+    output[idx] = result;
+}
